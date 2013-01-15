@@ -8,20 +8,37 @@
 #include <array>
 
 struct vector {
+
+    inline
     vector(double x, double y) : x(x), y(y) {}
     vector() = default;
 
+    inline
     double length_sq() const {
         return x*x + y*y;
     }
 
+    inline
     vector operator-(const vector &other) const {
         return vector(x-other.x, y-other.y);
     }
 
+    inline
     double dist_sq(const vector &other) const {
         return (*this - other).length_sq();
     }
+
+    inline
+    bool box_in(const vector &other, const double halve_cell) const {
+        if (other.x > (x + halve_cell) || other.x < (x - halve_cell)) {
+            return false;
+        }
+        if (other.y > (y + halve_cell) || other.y < (y - halve_cell)) {
+            return false;
+        }
+        return true;
+    }
+
     double x, y;
 };
 
@@ -49,7 +66,7 @@ public:
         }
 
         size_t hash(const cell &v) const {
-            return v.x * p1 ^ v.y*p2;
+            return v.x*p1 ^ v.y*p2;
         }
 
         const int p1 = 73856093;
@@ -64,18 +81,14 @@ public:
         for (size_t i = 0; i < points.size(); ++i) {
             const vector &v = points[i];
             cell c(v, cell_size);
-            typename map_type::const_accessor result;
-            if (map.find(result, c)) {
-                result->second->push_back(v);
-            } else {
-                typename map_type::accessor mutable_result;
-                if (map.insert(mutable_result, c)) {
-                    value_type *value = new value_type();
-                    mutable_result->second = value;
-                    value->push_back(v);
-                }
+            typename map_type::accessor result;
+            if (map.insert(result, c)) {
+                value_type *value = new value_type();
+                result->second = value;
             }
+            result->second->push_back(v);
         }
+
     }
 
     std::vector<T> query(const vector &v) const {
@@ -94,10 +107,11 @@ public:
 
         double range = cell_size*cell_size;
 
-        for (cell ci: cells) {
+        for (cell &ci: cells) {
             typename map_type::const_accessor result;
             if (!map.find(result, ci))
                 continue;
+
             for (const vector &vi: *result->second) {
                 if (v.dist_sq(vi) < range) {
                     points.push_back(vi);
